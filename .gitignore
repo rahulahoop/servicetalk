@@ -57,3 +57,9 @@ jenkins/
 # Temp files for scripts/update-copyright.sh
 /update-copyright-modified-files
 /update-copyright-temp
+
+# Dolt database files (accidentally created in repo root)
+/.dolt/
+/.doltcfg/
+/beads_servicetalk/
+/config.yaml

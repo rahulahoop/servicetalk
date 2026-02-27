@@ -7,14 +7,31 @@ set -euo pipefail
 DOLT_PORT=3307
 DOLT_DATA_DIR="/home/user/servicetalk/.beads/dolt"
 
+# Helper: check if a TCP port is open
+port_open() {
+  local port="$1"
+  if nc -z 127.0.0.1 "$port" 2>/dev/null; then
+    return 0
+  fi
+  if bash -c "echo >/dev/tcp/127.0.0.1/$port" 2>/dev/null; then
+    return 0
+  fi
+  if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+    return 0
+  fi
+  if netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
+    return 0
+  fi
+  return 1
+}
+
 # Check if dolt sql-server is already listening on port 3307
-if ss -tlnp 2>/dev/null | grep -q ":${DOLT_PORT} " || \
-   netstat -tlnp 2>/dev/null | grep -q ":${DOLT_PORT} "; then
+if port_open "${DOLT_PORT}"; then
   echo "dolt sql-server already running on port ${DOLT_PORT}, skipping start."
   exit 0
 fi
 
-# Also check via pgrep in case ss/netstat aren't available
+# Also check via pgrep in case the server is starting up
 if pgrep -f "dolt sql-server.*--port ${DOLT_PORT}" > /dev/null 2>&1; then
   echo "dolt sql-server process already running on port ${DOLT_PORT}, skipping start."
   exit 0
@@ -33,8 +50,7 @@ echo "dolt sql-server started with PID ${DOLT_PID}"
 # Wait for the server to become ready (up to 10 seconds)
 echo "Waiting for dolt sql-server to be ready..."
 for i in $(seq 1 10); do
-  if ss -tlnp 2>/dev/null | grep -q ":${DOLT_PORT} " || \
-     netstat -tlnp 2>/dev/null | grep -q ":${DOLT_PORT} "; then
+  if port_open "${DOLT_PORT}"; then
     echo "dolt sql-server is ready on port ${DOLT_PORT}."
     exit 0
   fi
